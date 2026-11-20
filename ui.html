@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0D0D0D">
+<title>tomp3</title>
+<script>
+// 明暗模式：在載入樣式前就套上使用者上次的選擇，避免畫面先閃一下另一種顏色。
+try {
+  const t = localStorage.getItem('theme');
+  if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+} catch (e) {}
+</script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700;800;900&family=Archivo+Black&family=Space+Mono:wght@400;700&family=Noto+Sans+TC:wght@400;700;900&display=swap">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="tomp3">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="stylesheet" href="/tokens.css">
+<style>
+body{padding:0 var(--space-4) var(--space-8)}
+.page{
+  max-width:860px; margin-inline:auto;
+  display:grid; gap:var(--space-2);
+  padding-top:var(--space-6);
+}
+
+/* ---- 頁首 ---- */
+.hd{text-align:center; padding-block:var(--space-6); position:relative}
+.themebtn{
+  position:absolute; top:var(--space-3); right:var(--space-3);
+  width:40px; height:40px; padding:0;
+  display:grid; place-items:center;
+  background:transparent; color:var(--color-text-invert);
+  border:var(--border-width) solid var(--color-text-invert);
+  cursor:pointer;
+  transition:background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.themebtn:hover{background:var(--color-text-invert); color:var(--color-surface-ink)}
+.themebtn svg{width:20px; height:20px}
+.hd__mark{
+  width:56px; height:56px; margin:0 auto var(--space-4);
+  display:grid; place-items:center;
+  background:var(--color-surface-ink); color:var(--color-text-invert);
+  border:var(--border-width) solid var(--color-text-invert);
+}
+.hd__mark svg{width:28px; height:28px}
+.hd__title{display:block}
+.hd__sub{display:block; margin-top:var(--space-2)}
+
+/* ---- 輸入區 ---- */
+.lead{text-align:center; margin-bottom:var(--space-3)}
+.inrow{display:flex; gap:var(--space-2); align-items:stretch}
+.inrow .fi-input{flex:1 1 auto; text-align:center}
+.inrow .fi-btn{flex:none; white-space:nowrap}
+.inwrap{position:relative; flex:1 1 auto; display:flex; min-width:0}
+.inwrap .fi-input{padding-right:40px}
+.inclear{
+  position:absolute; right:6px; top:50%; transform:translateY(-50%);
+  width:28px; height:28px; padding:0;
+  display:grid; place-items:center;
+  border:0; background:transparent; cursor:pointer; border-radius:50%;
+  color:var(--color-text-muted); font:700 15px/1 var(--font-sans);
+}
+.inclear:hover{background:var(--color-tint-warm); color:var(--color-text)}
+
+/* ---- 設定（平常收合） ---- */
+details.opts{margin-top:var(--space-5); border-top:var(--border); padding-top:var(--space-4)}
+details.opts summary{
+  font:700 13px/1.2 var(--font-sans);
+  letter-spacing:.08em;
+  cursor:pointer; list-style:none;
+  display:flex; align-items:center; justify-content:center; gap:var(--space-2);
+  user-select:none;
+}
+details.opts summary::-webkit-details-marker{display:none}
+details.opts summary::before{content:"▸"; font-family:var(--font-mono);
+  transition:transform var(--dur-fast) var(--ease)}
+details.opts[open] summary::before{transform:rotate(90deg)}
+.sumnote{font-weight:400; letter-spacing:0; color:var(--color-text-muted)}
+.optbody{display:grid; gap:var(--space-5); margin-top:var(--space-5)}
+.optbody .fi-seg{flex-wrap:nowrap}
+.optbody .fi-seg__btn{min-width:0; padding-inline:4px; white-space:nowrap;
+  font-size:clamp(12px, 3.6vw, 13px); letter-spacing:.02em}
+.opthint{margin-top:var(--space-2)}
+.folderrow{display:flex; gap:var(--space-2); margin-top:var(--space-2)}
+.folderrow .fi-input{flex:1 1 auto; min-width:0; font-size:14px}
+.folderrow .fi-btn{flex:none; white-space:nowrap}
+.optfoot{display:flex; align-items:center; gap:var(--space-3); flex-wrap:wrap}
+.saved{opacity:0; transition:opacity var(--dur-base) var(--ease)}
+.saved.on{opacity:1}
+
+/* ---- 結果 ---- */
+.done{display:flex; align-items:center; gap:var(--space-3); flex-wrap:wrap}
+.done p{margin:0; flex:1 1 260px; word-break:break-all}
+
+@media (max-width:640px){
+  .inrow{flex-direction:column}
+  .inrow .fi-btn{width:100%}
+  .inrow .fi-input{text-align:left}
+  .folderrow{flex-direction:column}
+}
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <header class="fi-panel fi-panel--ink hd">
+    <button id="btnTheme" class="themebtn" type="button"></button>
+    <span class="hd__mark">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M9 3h12v4H13v10.5A3.5 3.5 0 1 1 9 14.04V3z"/>
+      </svg>
+    </span>
+    <span class="fi-h2 hd__title">tomp3</span>
+    <span class="fi-small hd__sub">貼上影片網址，轉成 MP3</span>
+  </header>
+
+  <section class="fi-panel">
+    <p class="fi-label lead">影片網址</p>
+    <div class="inrow">
+      <span class="inwrap">
+        <input id="url" class="fi-input" type="url" inputmode="url" autocomplete="off"
+               spellcheck="false" placeholder="貼上影片網址…">
+        <button id="btnClear" class="inclear" type="button"
+                title="清空網址" aria-label="清空網址" hidden>✕</button>
+      </span>
+      <button id="go" class="fi-btn fi-btn--primary">下載 MP3</button>
+    </div>
+
+    <details class="opts" id="opts">
+      <summary>設定 <span class="sumnote" id="sumNote"></span></summary>
+      <div class="optbody">
+
+        <div>
+          <p class="fi-label">音質</p>
+          <div class="fi-seg" id="segQ" style="margin-top:var(--space-2)">
+            <button class="fi-seg__btn" data-v="128">128 kbps</button>
+            <button class="fi-seg__btn" data-v="192">192 kbps</button>
+            <button class="fi-seg__btn" data-v="320">320 kbps</button>
+            <button class="fi-seg__btn" data-v="best">原始最佳</button>
+          </div>
+          <p class="fi-small fi-muted opthint" id="qHint"></p>
+        </div>
+
+        <div>
+          <p class="fi-label">存放方式</p>
+          <div class="fi-seg" id="segMode" style="margin-top:var(--space-2)">
+            <button class="fi-seg__btn" data-v="folder">存到資料夾</button>
+            <button class="fi-seg__btn" data-v="browser">瀏覽器下載</button>
+          </div>
+          <div id="folderBox">
+            <div class="folderrow">
+              <input id="folder" class="fi-input" type="text" spellcheck="false"
+                     autocomplete="off" aria-label="存放資料夾">
+              <button class="fi-btn fi-btn--sm" id="btnPick" type="button">選資料夾</button>
+            </div>
+          </div>
+          <p class="fi-small fi-muted opthint" id="mHint"></p>
+        </div>
+
+        <div class="optfoot">
+          <button class="fi-btn fi-btn--sm fi-btn--ghost" id="btnReset" type="button">恢復預設</button>
+          <span class="fi-small fi-muted saved" id="saved">已記住</span>
+        </div>
+      </div>
+    </details>
+  </section>
+
+  <div class="fi-status" id="status" hidden>
+    <span class="fi-spinner"></span>
+    <span id="statusText">處理中…</span>
+  </div>
+
+  <div class="fi-panel" id="err" hidden
+       style="background:var(--tint-danger); white-space:pre-wrap"></div>
+
+  <section class="fi-panel fi-panel--tint-cool" id="result" hidden>
+    <div class="done">
+      <p class="fi-small" id="doneText"></p>
+      <button class="fi-btn fi-btn--sm" id="btnOpen" type="button" hidden>開啟資料夾</button>
+    </div>
+  </section>
+
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+let S = null, DEF = null, PHONE = false, timer = null, lastFolder = '';
+
+const Q_HINTS = {
+  '128':  '檔案最小，適合有聲書、講座、Podcast。',
+  '192':  '一般聽音樂的平衡選擇，大小與音質兼顧。',
+  '320':  'MP3 的最高固定位元率，檔案最大。',
+  'best': '用 MP3 最高品質的「可變位元率」，聽感接近 320、檔案通常小一點。',
+};
+const NOTE = '音質上限取決於影片本身的聲音，選再高也不會比原本更好。';
+
+// ---- 設定 ----
+function segSet(id, v) {
+  $(id).querySelectorAll('.fi-seg__btn').forEach(b => b.classList.toggle('is-on', b.dataset.v === v));
+}
+function renderSettings() {
+  segSet('#segQ', S.quality);
+  segSet('#segMode', S.mode);
+  if (document.activeElement !== $('#folder')) $('#folder').value = S.folder;
+  $('#folderBox').hidden = S.mode !== 'folder';
+  $('#btnPick').hidden = PHONE;
+  $('#qHint').textContent = Q_HINTS[S.quality] + NOTE;
+  $('#mHint').textContent = S.mode === 'folder'
+    ? (PHONE ? '可以直接改路徑，例如 /sdcard/Music。' : '可以直接改路徑，或按「選資料夾」。')
+    : '轉好後交給瀏覽器，存到瀏覽器的「下載」位置。';
+  const q = { '128': '128', '192': '192', '320': '320', best: '最佳' }[S.quality];
+  $('#sumNote').textContent = '（' + q + (q === '最佳' ? '' : ' kbps') + '・' +
+    (S.mode === 'folder' ? '存到資料夾' : '瀏覽器下載') + '）';
+}
+async function saveSettings(patch) {
+  try {
+    const r = await fetch('/api/settings', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch)
+    });
+    const j = await r.json();
+    if (!r.ok || j.error) throw new Error(j.error || '設定存不進去');
+    S = j.settings; renderSettings();
+    const s = $('#saved'); s.classList.add('on');
+    clearTimeout(s._t); s._t = setTimeout(() => s.classList.remove('on'), 1500);
+  } catch (e) { setErr(e.message); }
+}
+$('#segQ').addEventListener('click', e => {
+  const b = e.target.closest('.fi-seg__btn'); if (b) saveSettings({ quality: b.dataset.v });
+});
+$('#segMode').addEventListener('click', e => {
+  const b = e.target.closest('.fi-seg__btn'); if (b) saveSettings({ mode: b.dataset.v });
+});
+$('#folder').addEventListener('change', () => saveSettings({ folder: $('#folder').value }));
+$('#btnReset').addEventListener('click', () => saveSettings({ reset: true }));
+$('#btnPick').addEventListener('click', async () => {
+  const b = $('#btnPick'); b.disabled = true; b.textContent = '請看跳出的視窗…';
+  try {
+    const r = await fetch('/api/pick', { method: 'POST', body: '{}' });
+    const j = await r.json();
+    if (j.error) throw new Error(j.error);
+    if (j.folder) await saveSettings({ folder: j.folder });
+  } catch (e) { setErr(e.message); }
+  b.disabled = false; b.textContent = '選資料夾';
+});
+
+// ---- 狀態 ----
+function setStatus(msg, on = true) {
+  $('#status').hidden = !on;
+  if (msg) $('#statusText').textContent = msg;
+}
+function setErr(msg) {
+  $('#err').hidden = !msg;
+  $('#err').textContent = msg || '';
+}
+function busy(on) {
+  $('#go').disabled = on; $('#go').textContent = on ? '處理中…' : '下載 MP3';
+}
+
+// ---- 下載 ----
+async function start() {
+  const url = $('#url').value.trim();
+  if (!url) { $('#url').focus(); return; }
+  if (document.activeElement === $('#folder')) $('#folder').blur();
+  busy(true); setErr(''); $('#result').hidden = true; setStatus('準備中…');
+  try {
+    const r = await fetch('/api/start', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+    const j = await r.json();
+    if (!r.ok || j.error) throw new Error(j.error || '無法開始');
+    poll(j.id);
+  } catch (e) { fail(e.message); }
+}
+function poll(id) {
+  clearInterval(timer);
+  timer = setInterval(async () => {
+    try {
+      const r = await fetch('/api/status?id=' + id);
+      const j = await r.json();
+      if (j.log && j.log.length) setStatus(j.log[j.log.length - 1]);
+      if (j.status === 'done')  { clearInterval(timer); done(id, j.result); }
+      if (j.status === 'error') { clearInterval(timer); fail(j.error); }
+    } catch (e) { clearInterval(timer); fail('與程式的連線中斷，請確認程式還在執行'); }
+  }, 1000);
+}
+function fail(msg) { setStatus('', false); setErr(msg); busy(false); }
+function done(id, res) {
+  setStatus('', false); busy(false);
+  if (res.mode === 'browser') {
+    const a = document.createElement('a');
+    a.href = '/api/file?id=' + id; a.download = res.name;
+    document.body.appendChild(a); a.click(); a.remove();
+    $('#doneText').textContent = '完成：' + res.name + '（' + res.mb + ' MB），已交給瀏覽器下載。';
+    $('#btnOpen').hidden = true;
+  } else {
+    lastFolder = res.folder;
+    $('#doneText').textContent = '完成：已存到 ' + res.path + '（' + res.mb + ' MB）';
+    $('#btnOpen').hidden = PHONE;
+  }
+  $('#result').hidden = false;
+}
+$('#btnOpen').addEventListener('click', () =>
+  fetch('/api/open', { method: 'POST', body: JSON.stringify({ folder: lastFolder }) }));
+
+$('#go').addEventListener('click', start);
+$('#url').addEventListener('keydown', e => { if (e.key === 'Enter') start(); });
+const urlBox = $('#url'), btnClear = $('#btnClear');
+const syncClear = () => { btnClear.hidden = !urlBox.value; };
+urlBox.addEventListener('input', syncClear);
+btnClear.addEventListener('click', () => { urlBox.value = ''; syncClear(); urlBox.focus(); });
+syncClear();
+
+// ---- 心跳：關掉分頁幾分鐘後程式自動結束 ----
+const ping = () => fetch('/api/ping').then(r => r.json()).catch(() => null);
+ping().then(j => {
+  if (!j) return;
+  PHONE = !!j.phone; DEF = j.defaults;
+  if (!S) { S = j.settings; renderSettings(); }
+});
+setInterval(ping, 30000);
+
+// ---- 明暗切換 ----
+const ICON_MOON = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' +
+  '<path d="M21 14.5A9 9 0 0 1 9.5 3a9 9 0 1 0 11.5 11.5z"/></svg>';
+const ICON_SUN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" ' +
+  'stroke-linecap="square" aria-hidden="true"><circle cx="12" cy="12" r="4.2" fill="currentColor" stroke="none"/>' +
+  '<path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3M4.6 4.6l2.1 2.1M17.3 17.3l2.1 2.1M4.6 19.4l2.1-2.1M17.3 6.7l2.1-2.1"/></svg>';
+const sysDark = window.matchMedia('(prefers-color-scheme: dark)');
+const isDark = () => (document.documentElement.dataset.theme || (sysDark.matches ? 'dark' : 'light')) === 'dark';
+function syncTheme() {
+  const dark = isDark(), b = $('#btnTheme');
+  b.innerHTML = dark ? ICON_SUN : ICON_MOON;
+  b.title = dark ? '切換成淺色模式' : '切換成深色模式';
+  b.setAttribute('aria-label', b.title);
+  document.querySelector('meta[name="theme-color"]').content = dark ? '#0D0D0D' : '#FAF9F5';
+}
+$('#btnTheme').addEventListener('click', () => {
+  const t = isDark() ? 'light' : 'dark';
+  document.documentElement.dataset.theme = t;
+  try { localStorage.setItem('theme', t); } catch (e) {}
+  syncTheme();
+});
+sysDark.addEventListener('change', syncTheme);
+syncTheme();
+
+window.addEventListener('load', () => { if (window.innerWidth > 640) $('#url').focus(); });
+</script>
+</body>
+</html>

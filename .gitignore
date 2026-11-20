@@ -1,0 +1,7 @@
+__pycache__/
+*.py[cod]
+# 個人設定與自動複製的 ffmpeg，不進版控
+settings.json
+bin/
+Thumbs.db
+desktop.ini

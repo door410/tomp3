@@ -1,0 +1,5 @@
+# tomp3 Python packages. Keep this file PURE ASCII (pip may read it with the Big5 codepage).
+# yt-dlp: only a minimum version - it must keep up with website changes.
+# imageio-ffmpeg: ships an ffmpeg binary for Windows only. The phone (Termux) uses `pkg install ffmpeg`.
+yt-dlp>=2026.10.26
+imageio-ffmpeg>=0.8.1; sys_platform == "win32"

@@ -1,0 +1,6 @@
+* text=auto eol=lf
+# Windows 啟動器維持 CRLF＋純 ASCII（wscript／PowerShell 以系統代碼頁讀取）
+*.vbs text eol=crlf
+*.ps1 text eol=crlf
+*.png binary
+*.ico binary
